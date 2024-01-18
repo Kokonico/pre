@@ -26,4 +26,5 @@ pre <image path>
 
 - `--height`: determines the images size based on the terminals height
 - `--stretch`: stretches the image to fit the terminal
+<br>
 note: the image will be resized by width if no flags are provided.
