@@ -1,5 +1,5 @@
 pub fn print_help(program: &str) {
-    eprintln!("ASCII Media Player v2.0");
+    eprintln!("pre v2.0");
     eprintln!();
     eprintln!("Usage: {} <file> [options]", program);
     eprintln!();
