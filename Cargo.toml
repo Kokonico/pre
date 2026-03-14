@@ -1,11 +1,10 @@
 [package]
 name = "pre"
-version = "1.0.0"
+version = "2.0.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-image = "0.24.7"
-rayon = "1.8.0"
-term_size = "0.3.2"
+image = "0.24"
+rayon = "1.10"
+term_size = "0.3"
+ctrlc = "3.4"
