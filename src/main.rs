@@ -315,10 +315,7 @@ fn display_image(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn play_gif(
-    config: &Config,
-    stop: &Arc<AtomicBool>,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn play_gif(config: &Config, stop: &Arc<AtomicBool>) -> Result<(), Box<dyn std::error::Error>> {
     let file = File::open(&config.path)?;
     let reader = BufReader::new(file);
     let decoder = GifDecoder::new(reader)?;
@@ -345,12 +342,17 @@ fn play_gif(
         .par_iter()
         .map(|frame| {
             let img = rgba_to_rgb(frame.buffer());
-            let resized = image::imageops::resize(&img, new_width, new_height, FilterType::Triangle);
+            let resized =
+                image::imageops::resize(&img, new_width, new_height, FilterType::Triangle);
             let adjusted = apply_adjustments(&resized, config.brightness, config.contrast);
             let ascii = to_ascii(&adjusted, config);
 
             let (num, denom) = frame.delay().numer_denom_ms();
-            let ms = if denom == 0 { 100 } else { (num / denom).max(16) };
+            let ms = if denom == 0 {
+                100
+            } else {
+                (num / denom).max(16)
+            };
             let duration = if config.fps > 0.0 {
                 Duration::from_secs_f32(1.0 / config.fps)
             } else {
@@ -387,10 +389,7 @@ fn play_gif(
     Ok(())
 }
 
-fn play_video(
-    config: &Config,
-    stop: &Arc<AtomicBool>,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn play_video(config: &Config, stop: &Arc<AtomicBool>) -> Result<(), Box<dyn std::error::Error>> {
     if !is_ffmpeg_available() {
         return Err("ffmpeg not found. Please install ffmpeg to play videos.".into());
     }
@@ -531,7 +530,11 @@ fn get_video_info(path: &str) -> Result<VideoInfo, Box<dyn std::error::Error>> {
     let fps = if fps_parts.len() == 2 {
         let num: f32 = fps_parts[0].parse().unwrap_or(30.0);
         let den: f32 = fps_parts[1].parse().unwrap_or(1.0);
-        if den > 0.0 { num / den } else { 30.0 }
+        if den > 0.0 {
+            num / den
+        } else {
+            30.0
+        }
     } else {
         parts[2].parse().unwrap_or(30.0)
     };
