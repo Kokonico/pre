@@ -1,177 +1,16 @@
-use image::codecs::gif::GifDecoder;
-use image::imageops::FilterType;
-use image::{AnimationDecoder, ImageBuffer, Rgb, RgbaImage};
-use rayon::prelude::*;
-use std::env;
-use std::fs::File;
-use std::io::{self, BufRead, BufReader, Read, Write};
-use std::path::Path;
-use std::process::{Child, Command, Stdio};
+mod args;
+mod constants;
+mod help;
+mod helpers;
+mod models;
+mod rendering;
+mod run;
+
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::thread;
-use std::time::{Duration, Instant};
-
-const ASCII_DETAILED: &str =
-    " .'`^\",:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
-const ASCII_SIMPLE: &str = " .:-=+*#%@";
-const ASCII_BLOCKS: &str = " ░▒▓█";
-
-const VIDEO_EXTENSIONS: &[&str] = &[
-    ".mp4", ".mkv", ".avi", ".mov", ".webm", ".flv", ".wmv", ".m4v", ".mpeg", ".mpg", ".3gp",
-];
-
-struct Config {
-    path: String,
-    by_height: bool,
-    stretch: bool,
-    no_color: bool,
-    invert: bool,
-    loop_playback: bool,
-    charset: CharSet,
-    fps: f32,
-    width: Option<u32>,
-    height: Option<u32>,
-    no_audio: bool,
-    brightness: f32,
-    contrast: f32,
-}
-
-#[derive(Clone, Copy)]
-enum CharSet {
-    Detailed,
-    Simple,
-    Blocks,
-}
-
-impl CharSet {
-    fn chars(&self) -> &'static str {
-        match self {
-            CharSet::Detailed => ASCII_DETAILED,
-            CharSet::Simple => ASCII_SIMPLE,
-            CharSet::Blocks => ASCII_BLOCKS,
-        }
-    }
-}
-
-struct Terminal {
-    cursor_hidden: bool,
-    alternate_screen: bool,
-}
-
-impl Terminal {
-    fn new() -> Self {
-        Self {
-            cursor_hidden: false,
-            alternate_screen: false,
-        }
-    }
-
-    fn enter_alternate_screen(&mut self) {
-        if !self.alternate_screen {
-            print!("\x1b[?1049h");
-            let _ = io::stdout().flush();
-            self.alternate_screen = true;
-        }
-    }
-
-    fn leave_alternate_screen(&mut self) {
-        if self.alternate_screen {
-            print!("\x1b[?1049l");
-            let _ = io::stdout().flush();
-            self.alternate_screen = false;
-        }
-    }
-
-    fn hide_cursor(&mut self) {
-        if !self.cursor_hidden {
-            print!("\x1b[?25l");
-            let _ = io::stdout().flush();
-            self.cursor_hidden = true;
-        }
-    }
-
-    fn show_cursor(&mut self) {
-        if self.cursor_hidden {
-            print!("\x1b[?25h");
-            let _ = io::stdout().flush();
-            self.cursor_hidden = false;
-        }
-    }
-
-    fn clear(&self) {
-        print!("\x1b[2J\x1b[H");
-        let _ = io::stdout().flush();
-    }
-
-    fn move_home(&self) {
-        print!("\x1b[H");
-        let _ = io::stdout().flush();
-    }
-
-    fn reset_colors(&self) {
-        print!("\x1b[0m");
-        let _ = io::stdout().flush();
-    }
-
-    fn size(&self) -> (u32, u32) {
-        term_size::dimensions()
-            .map(|(w, h)| (w as u32, h as u32))
-            .unwrap_or((80, 24))
-    }
-}
-
-impl Drop for Terminal {
-    fn drop(&mut self) {
-        self.reset_colors();
-        self.show_cursor();
-        self.leave_alternate_screen();
-    }
-}
-
-struct AudioPlayer {
-    process: Option<Child>,
-}
-
-impl AudioPlayer {
-    fn new() -> Self {
-        Self { process: None }
-    }
-
-    fn play(&mut self, path: &str) -> bool {
-        let result = Command::new("ffplay")
-            .args(["-nodisp", "-autoexit", "-loglevel", "quiet", path])
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn();
-
-        match result {
-            Ok(child) => {
-                self.process = Some(child);
-                true
-            }
-            Err(_) => false,
-        }
-    }
-
-    fn stop(&mut self) {
-        if let Some(ref mut child) = self.process {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-        self.process = None;
-    }
-}
-
-impl Drop for AudioPlayer {
-    fn drop(&mut self) {
-        self.stop();
-    }
-}
 
 fn main() {
-    let config = match parse_args() {
+    let config = match args::parse_args() {
         Some(c) => c,
         None => return,
     };
@@ -184,7 +23,7 @@ fn main() {
     })
     .expect("Failed to set Ctrl+C handler");
 
-    let result = run(&config, &stop);
+    let result = run::run(&config, &stop);
 
     if let Err(e) = result {
         eprintln!("Error: {}", e);
